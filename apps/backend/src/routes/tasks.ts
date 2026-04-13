@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, count, sql } from "drizzle-orm";
 import multer from "multer";
 import { db } from "../db";
 import { tasks, comparisonResults } from "../schema";
@@ -17,6 +17,116 @@ router.get("/", async (_req, res) => {
     res.json(allTasks);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch tasks" });
+  }
+});
+
+// Aggregate task statistics (must come before /:id)
+router.get("/stats", async (_req, res) => {
+  try {
+    const totalResult = await db.select({ count: count() }).from(tasks);
+    const totalTasks = totalResult[0]?.count ?? 0;
+
+    const compareResult = await db
+      .select({ count: count() })
+      .from(tasks)
+      .where(eq(tasks.compareMode, true));
+    const totalComparisons = compareResult[0]?.count ?? 0;
+
+    let totalSaved = 0;
+    let avgCostSavings = 0;
+    let savingsCount = 0;
+
+    if (totalComparisons > 0) {
+      const compareTasksRows = await db
+        .select({ id: tasks.id })
+        .from(tasks)
+        .where(eq(tasks.compareMode, true));
+
+      let savingsSum = 0;
+
+      for (const ct of compareTasksRows) {
+        const compRows = await db
+          .select()
+          .from(comparisonResults)
+          .where(eq(comparisonResults.taskId, ct.id));
+
+        const completedComps = compRows.filter((c) => c.status === "completed" && (c.costUsd ?? 0) > 0);
+        if (completedComps.length >= 2) {
+          const costs = completedComps.map((c) => c.costUsd ?? 0);
+          const minCost = Math.min(...costs);
+          const maxCost = Math.max(...costs);
+          const savings = maxCost - minCost;
+          if (savings > 0) {
+            totalSaved += savings;
+            savingsSum += (savings / maxCost) * 100;
+            savingsCount++;
+          }
+        }
+      }
+
+      avgCostSavings = savingsCount > 0 ? Math.round(savingsSum / savingsCount) : 0;
+    }
+
+    res.json({
+      totalTasks,
+      totalComparisons,
+      avgCostSavings,
+      totalSaved: Math.round(totalSaved * 1_000_000) / 1_000_000,
+      comparisonsRun: totalComparisons,
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch task stats" });
+  }
+});
+
+// Comparison history (must come before /:id)
+router.get("/comparisons/history", async (_req, res) => {
+  try {
+    const compareTasks = await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.compareMode, true))
+      .orderBy(desc(tasks.createdAt));
+
+    const history = await Promise.all(
+      compareTasks.map(async (task) => {
+        const comparisons = await db
+          .select()
+          .from(comparisonResults)
+          .where(eq(comparisonResults.taskId, task.id));
+
+        const completedComps = comparisons.filter(
+          (c) => c.status === "completed" && (c.costUsd ?? 0) > 0
+        );
+        const costs = completedComps.map((c) => c.costUsd ?? 0);
+        const avgCost = costs.length > 0 ? costs.reduce((a, b) => a + b, 0) / costs.length : 0;
+        const maxCost = costs.length > 0 ? Math.max(...costs) : 0;
+        const winnerCost =
+          task.winningProvider
+            ? completedComps.find((c) => c.provider === task.winningProvider)?.costUsd ?? 0
+            : costs.length > 0
+              ? Math.min(...costs)
+              : 0;
+
+        return {
+          taskId: task.id,
+          taskType: task.type,
+          input: task.input.substring(0, 100),
+          createdAt: task.createdAt,
+          providersRun: comparisons.length,
+          winner: task.winningProvider ?? undefined,
+          winnerCost: Math.round(winnerCost * 1_000_000) / 1_000_000,
+          avgCost: Math.round(avgCost * 1_000_000) / 1_000_000,
+          maxCost: Math.round(maxCost * 1_000_000) / 1_000_000,
+          savings: Math.round((maxCost - winnerCost) * 1_000_000) / 1_000_000,
+          comparisons,
+        };
+      })
+    );
+
+    res.json(history);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch comparison history" });
   }
 });
 

@@ -17,13 +17,15 @@ const STATUS_COLORS: Record<string, string> = {
 export default function Dashboard() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [attestations, setAttestations] = useState<any[]>([]);
+  const [taskStats, setTaskStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([api.getTasks(), api.getAttestations()])
-      .then(([t, a]) => {
+    Promise.all([api.getTasks(), api.getAttestations(), api.getTaskStats()])
+      .then(([t, a, s]) => {
         setTasks(t);
         setAttestations(a);
+        setTaskStats(s);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -61,6 +63,30 @@ export default function Dashboard() {
           </div>
         ))}
       </div>
+
+      {/* Comparison & Analytics Stats */}
+      {taskStats && (taskStats.totalComparisons > 0 || true) && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="border border-purple-500/30 rounded-lg p-4 bg-purple-500/5">
+            <div className="text-2xl font-bold text-purple-400">{taskStats.comparisonsRun ?? 0}</div>
+            <div className="text-xs text-gray-500 mt-1">Comparisons Run</div>
+          </div>
+          <div className="border border-emerald-500/30 rounded-lg p-4 bg-emerald-500/5">
+            <div className="text-2xl font-bold text-emerald-400">
+              ${(taskStats.totalSaved ?? 0).toFixed(4)}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">Total Saved</div>
+          </div>
+          <div className="border border-cyan-500/30 rounded-lg p-4 bg-cyan-500/5">
+            <div className="text-2xl font-bold text-cyan-400">{taskStats.avgCostSavings ?? 0}%</div>
+            <div className="text-xs text-gray-500 mt-1">Avg Savings %</div>
+          </div>
+          <div className="border border-kite-500/30 rounded-lg p-4 bg-kite-500/5">
+            <div className="text-2xl font-bold text-kite-400">x402</div>
+            <div className="text-xs text-gray-500 mt-1">Payment Protocol</div>
+          </div>
+        </div>
+      )}
 
       {/* Recent Tasks */}
       <div>

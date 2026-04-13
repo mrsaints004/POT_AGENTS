@@ -6,6 +6,8 @@ import { Server } from "socket.io";
 import { taskRoutes } from "./routes/tasks";
 import { attestationRoutes } from "./routes/attestations";
 import { agentRoutes } from "./routes/agent";
+import { x402Routes } from "./routes/x402";
+import { gaslessRoutes } from "./routes/gasless";
 import { KiteClient } from "./blockchain/KiteClient";
 
 const app = express();
@@ -37,6 +39,8 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/tasks", taskRoutes);
 app.use("/api/attestations", attestationRoutes);
 app.use("/api/agent", agentRoutes);
+app.use("/api/x402", x402Routes);
+app.use("/api/gasless", gaslessRoutes);
 
 io.on("connection", (socket) => {
   console.log(`Client connected: ${socket.id}`);

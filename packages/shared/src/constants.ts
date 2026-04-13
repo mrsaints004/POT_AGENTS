@@ -79,3 +79,58 @@ export const TASK_TYPE_LABELS: Record<string, string> = {
   summarization: "Summarization",
   custom: "Custom Task",
 };
+
+// x402 Payment Protocol Configuration
+export const X402_CONFIG = {
+  facilitatorUrl: "https://facilitator.pieverse.io",
+  pricing: {
+    "text-generation": 0.01,
+    translation: 0.008,
+    "code-review": 0.015,
+    summarization: 0.008,
+    custom: 0.02,
+  },
+  asset: KITE_TESTNET.contracts.testUSDT,
+  network: "kite-testnet",
+} as const;
+
+// EIP-712 Domain for Gasless Transfers (TransferWithAuthorization - ERC-3009)
+export const GASLESS_EIP712_DOMAIN = {
+  name: "Test USDT",
+  version: "1",
+  chainId: KITE_TESTNET.chainId,
+  verifyingContract: KITE_TESTNET.contracts.testUSDT,
+} as const;
+
+export const GASLESS_EIP712_TYPES = {
+  TransferWithAuthorization: [
+    { name: "from", type: "address" },
+    { name: "to", type: "address" },
+    { name: "value", type: "uint256" },
+    { name: "validAfter", type: "uint256" },
+    { name: "validBefore", type: "uint256" },
+    { name: "nonce", type: "bytes32" },
+  ],
+} as const;
+
+// GoKite Account Factory ABI (Agent Passport)
+export const GOKITE_ACCOUNT_FACTORY_ABI = [
+  "function getAccount(address owner) external view returns (address)",
+  "function isRegistered(address account) external view returns (bool)",
+] as const;
+
+// Cross-Chain Configuration
+export const CROSS_CHAIN_CONFIG = {
+  layerZero: {
+    available: true,
+    endpoint: "https://testnet.layerzero-scan.com",
+    supportedNetworks: [
+      "Kite AI Testnet",
+      "Ethereum Sepolia",
+      "Polygon Mumbai",
+      "Arbitrum Sepolia",
+      "Optimism Sepolia",
+      "Base Sepolia",
+    ],
+  },
+} as const;

@@ -1,5 +1,6 @@
 import { ethers } from "ethers";
-import { KITE_TESTNET, SERVICE_REGISTRY_ABI } from "@pot/shared";
+import { KITE_TESTNET, SERVICE_REGISTRY_ABI, GOKITE_ACCOUNT_FACTORY_ABI } from "@pot/shared";
+import type { GaslessTransferRequest, AgentPassport } from "@pot/shared";
 
 const PROOF_OF_THOUGHT_ABI = [
   "function completeTask(string calldata _taskId, string calldata _taskType, bytes32 _reasoningHash, string calldata _providerUsed, uint256 _costInMicroUSD) external returns (uint256)",
@@ -18,6 +19,7 @@ const ERC20_ABI = [
   "function balanceOf(address account) external view returns (uint256)",
   "function allowance(address owner, address spender) external view returns (uint256)",
   "function decimals() external view returns (uint8)",
+  "function transferWithAuthorization(address from, address to, uint256 value, uint256 validAfter, uint256 validBefore, bytes32 nonce, uint8 v, bytes32 r, bytes32 s) external",
 ];
 
 export class KiteClient {
@@ -122,6 +124,91 @@ export class KiteClient {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Relay a gasless transfer using ERC-3009 TransferWithAuthorization.
+   * The backend pays gas on behalf of the user.
+   */
+  async relayGaslessTransfer(request: GaslessTransferRequest): Promise<string> {
+    const { from, to, value, validAfter, validBefore, nonce, signature } = request;
+
+    // Split signature into v, r, s
+    const sig = ethers.Signature.from(signature);
+
+    const tx = await this.usdtContract.transferWithAuthorization(
+      from,
+      to,
+      BigInt(value),
+      validAfter,
+      validBefore,
+      nonce,
+      sig.v,
+      sig.r,
+      sig.s
+    );
+
+    const receipt = await tx.wait();
+    return receipt.hash;
+  }
+
+  /**
+   * Get Agent Passport info from GoKite Account Factory.
+   */
+  async getAgentPassportInfo(): Promise<AgentPassport> {
+    const accountFactory = new ethers.Contract(
+      KITE_TESTNET.contracts.gokiteAccountFactory,
+      GOKITE_ACCOUNT_FACTORY_ABI as unknown as string[],
+      this.provider
+    );
+
+    let isRegistered = false;
+    try {
+      isRegistered = await accountFactory.isRegistered(this.wallet.address);
+    } catch {
+      // Contract may not support this method — treat as unregistered
+    }
+
+    // Check service registry registration
+    let serviceId: string | undefined;
+    try {
+      serviceId = ethers.keccak256(
+        ethers.solidityPacked(["string", "address"], ["pot-agent", this.wallet.address])
+      );
+      const service = await this.serviceRegistry.getService(serviceId);
+      if (service.serviceOwner === ethers.ZeroAddress) {
+        serviceId = undefined;
+      }
+    } catch {
+      serviceId = undefined;
+    }
+
+    // Derive trust score from on-chain data
+    let trustScore = 50; // base score
+    try {
+      const attestationIds = await this.contract.getAttestationsByAgent(this.wallet.address);
+      const attestationCount = attestationIds.length;
+      // More attestations = higher trust, capped at 99
+      trustScore = Math.min(99, 50 + attestationCount * 5);
+    } catch {
+      // No attestations yet
+    }
+
+    return {
+      agentAddress: this.wallet.address,
+      isRegistered: isRegistered || !!serviceId,
+      capabilities: [
+        "text-generation",
+        "translation",
+        "code-review",
+        "summarization",
+        "multi-provider-comparison",
+        "task-decomposition",
+        "on-chain-attestation",
+      ],
+      trustScore,
+      serviceId,
+    };
   }
 
   async registerAsService(): Promise<string | null> {

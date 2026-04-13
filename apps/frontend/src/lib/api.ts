@@ -74,6 +74,11 @@ export const api = {
   getAttestation: (id: string) => fetchApi<any>(`/api/attestations/${id}`),
   getAgentProfile: () => fetchApi<any>("/api/agent/profile"),
   getAgentStatus: () => fetchApi<any>("/api/agent/status"),
+  getAgentPassport: () => fetchApi<any>("/api/agent/passport"),
+  getTaskStats: () => fetchApi<any>("/api/tasks/stats"),
+  getComparisonHistory: () => fetchApi<any[]>("/api/tasks/comparisons/history"),
+  getGaslessInfo: () => fetchApi<any>("/api/gasless/info"),
+  getX402Pricing: () => fetchApi<any>("/api/x402/pricing"),
 };
 
 export { API_URL };

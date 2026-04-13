@@ -105,3 +105,90 @@ export interface ComparisonResult {
   createdAt: string;
   completedAt?: string;
 }
+
+// x402 Payment Protocol
+export interface X402PaymentRequirements {
+  scheme: "exact";
+  network: "kite-testnet";
+  maxAmountRequired: string;
+  resource: string;
+  description: string;
+  mimeType: string;
+  payTo: string;
+  maxTimeoutSeconds: number;
+  asset: string;
+  extra: {
+    name: string;
+    version: string;
+  };
+}
+
+export interface X402Config {
+  facilitatorUrl: string;
+  paymentRecipient: string;
+  pricing: Record<TaskType, number>;
+}
+
+// Gasless Transactions (EIP-712 / ERC-3009)
+export interface GaslessTransferRequest {
+  from: string;
+  to: string;
+  value: string;
+  validAfter: number;
+  validBefore: number;
+  nonce: string;
+  signature: string;
+}
+
+export interface EIP712Domain {
+  name: string;
+  version: string;
+  chainId: number;
+  verifyingContract: string;
+}
+
+// Agent Passport
+export interface AgentPassport {
+  agentAddress: string;
+  isRegistered: boolean;
+  capabilities: string[];
+  trustScore: number;
+  registeredAt?: string;
+  serviceId?: string;
+}
+
+// Cost Savings Analytics
+export interface TaskStats {
+  totalTasks: number;
+  totalComparisons: number;
+  avgCostSavings: number;
+  totalSaved: number;
+  comparisonsRun: number;
+}
+
+export interface ComparisonHistory {
+  taskId: string;
+  taskType: TaskType;
+  input: string;
+  createdAt: string;
+  providersRun: number;
+  winner?: ProviderName;
+  winnerCost: number;
+  avgCost: number;
+  maxCost: number;
+  savings: number;
+  comparisons: ComparisonResult[];
+}
+
+// Cross-Chain
+export interface CrossChainInfo {
+  kiteTestnet: {
+    connected: boolean;
+    chainId: number;
+  };
+  layerZero: {
+    available: boolean;
+    endpoint: string;
+    supportedNetworks: string[];
+  };
+}

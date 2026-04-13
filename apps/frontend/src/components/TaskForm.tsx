@@ -75,6 +75,7 @@ export function TaskForm() {
   const [preferredProvider, setPreferredProvider] = useState("");
   const [compareMode, setCompareMode] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [gaslessMode, setGaslessMode] = useState(false);
   const [error, setError] = useState("");
   const [txStep, setTxStep] = useState<TxStep>("idle");
   const [estimate, setEstimate] = useState<CostEstimate | null>(null);
@@ -377,6 +378,29 @@ export function TaskForm() {
         {compareMode && (
           <p className="text-xs text-purple-400/70 mt-2">
             Your task will run on all available AI providers simultaneously for side-by-side comparison.
+          </p>
+        )}
+      </div>
+
+      {/* Gasless Mode Toggle */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setGaslessMode(!gaslessMode)}
+          className={`w-full px-4 py-3 rounded-lg border text-sm font-medium transition flex items-center justify-center gap-2 ${
+            gaslessMode
+              ? "border-emerald-500 bg-emerald-500/10 text-emerald-400"
+              : "border-gray-800 bg-gray-900 text-gray-400 hover:border-gray-700"
+          }`}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          {gaslessMode ? "Gasless Mode ON" : "Gasless Mode (No KITE for gas)"}
+        </button>
+        {gaslessMode && (
+          <p className="text-xs text-emerald-400/70 mt-2">
+            Sign an EIP-712 message instead of paying gas. The backend relays the transaction for you.
           </p>
         )}
       </div>

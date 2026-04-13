@@ -378,6 +378,34 @@ export default function TaskDetailPage() {
               });
             })()}
           </div>
+
+          {/* Cost Savings Callout */}
+          {task.winningProvider && (() => {
+            const completedComps = comparisonResults.filter(
+              (c: any) => c.status === "completed" && c.costUsd > 0
+            );
+            if (completedComps.length < 2) return null;
+            const winnerCost = completedComps.find(
+              (c: any) => c.provider === task.winningProvider
+            )?.costUsd ?? 0;
+            const maxCost = Math.max(...completedComps.map((c: any) => c.costUsd));
+            const savings = maxCost - winnerCost;
+            const savingsPct = maxCost > 0 ? Math.round((savings / maxCost) * 100) : 0;
+            if (savings <= 0) return null;
+            return (
+              <div className="border border-emerald-500/30 rounded-lg p-4 bg-emerald-500/5 flex items-center gap-4">
+                <div className="text-3xl font-bold text-emerald-400">{savingsPct}%</div>
+                <div>
+                  <p className="text-emerald-400 font-medium text-sm">
+                    You saved ${savings.toFixed(6)} by choosing {task.winningProvider}
+                  </p>
+                  <p className="text-gray-500 text-xs mt-0.5">
+                    vs the most expensive option (${maxCost.toFixed(6)})
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 

@@ -26,6 +26,9 @@ function Nav() {
           <Link href="/attestations" className="text-gray-400 hover:text-white transition">
             Attestations
           </Link>
+          <Link href="/comparisons" className="text-gray-400 hover:text-white transition">
+            Compare
+          </Link>
           <Link href="/agent" className="text-gray-400 hover:text-white transition">
             Agent
           </Link>
