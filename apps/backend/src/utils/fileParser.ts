@@ -1,5 +1,3 @@
-import { PDFParse } from "pdf-parse";
-import mammoth from "mammoth";
 import { parse } from "csv-parse/sync";
 
 export async function parseFile(buffer: Buffer, mimetype: string): Promise<string> {
@@ -17,13 +15,31 @@ export async function parseFile(buffer: Buffer, mimetype: string): Promise<strin
   }
 }
 
+/** Text-only PDF parsing (no canvas) — safe for Vercel serverless. */
 async function parsePdf(buffer: Buffer): Promise<string> {
-  const parser = new PDFParse({ data: new Uint8Array(buffer) });
-  const textResult = await parser.getText();
-  return textResult.text;
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const doc = await pdfjs.getDocument({
+    data: new Uint8Array(buffer),
+    useSystemFonts: true,
+    disableFontFace: true,
+  }).promise;
+
+  const parts: string[] = [];
+  for (let pageNum = 1; pageNum <= doc.numPages; pageNum++) {
+    const page = await doc.getPage(pageNum);
+    const content = await page.getTextContent();
+    const text = content.items
+      .map((item) => ("str" in item ? item.str : ""))
+      .join(" ");
+    parts.push(text);
+  }
+
+  await doc.destroy();
+  return parts.join("\n").trim();
 }
 
 async function parseDocx(buffer: Buffer): Promise<string> {
+  const mammoth = await import("mammoth");
   const result = await mammoth.extractRawText({ buffer });
   return result.value;
 }

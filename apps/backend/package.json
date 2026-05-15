@@ -24,7 +24,7 @@
     "mammoth": "^1.12.0",
     "multer": "^2.1.1",
     "openai": "^6.34.0",
-    "pdf-parse": "^2.4.5",
+    "pdfjs-dist": "^5.4.296",
     "socket.io": "^4.8.0",
     "uuid": "^11.0.0"
   },

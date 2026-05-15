@@ -6,7 +6,6 @@ import { tasks, comparisonResults } from "../schema";
 import { AgentCore } from "../agent/AgentCore";
 import { DecisionEngine } from "../agent/DecisionEngine";
 import { TaskCreateInput, TaskType, ProviderName } from "@pot/shared";
-import { parseFile } from "../utils/fileParser";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -177,9 +176,10 @@ router.post("/", upload.single("file"), async (req, res) => {
       return res.status(400).json({ error: "Missing required fields: escrowTxHash, depositorAddress. User must deposit escrow via wallet." });
     }
 
-    // Handle file upload
+    // Handle file upload (lazy import keeps pdfjs/mammoth off the serverless cold path)
     if (req.file) {
       try {
+        const { parseFile } = await import("../utils/fileParser");
         const fileText = await parseFile(req.file.buffer, req.file.mimetype);
         input.fileContent = fileText;
         input.fileName = req.file.originalname;
