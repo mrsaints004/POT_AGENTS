@@ -63,6 +63,9 @@ export function createApp(): Express {
   return app;
 }
 
+/** Default export for Vercel (@vercel/node requires a function or server). */
+export default createApp();
+
 /** Attach Socket.IO to an HTTP server (local / long-running hosts only). */
 export function attachSocketIo(app: Express, server: HttpServer): Server {
   const allowedOrigins = getAllowedOrigins();
