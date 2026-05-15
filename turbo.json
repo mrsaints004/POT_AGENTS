@@ -6,7 +6,8 @@
     "PRIVATE_KEY",
     "PROOF_OF_THOUGHT_CONTRACT",
     "PORT",
-    "FRONTEND_URL"
+    "FRONTEND_URL",
+    "NEXT_PUBLIC_API_URL"
   ],
   "tasks": {
     "build": {
