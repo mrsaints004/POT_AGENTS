@@ -7,7 +7,8 @@
     "PROOF_OF_THOUGHT_CONTRACT",
     "PORT",
     "FRONTEND_URL",
-    "NEXT_PUBLIC_API_URL"
+    "NEXT_PUBLIC_API_URL",
+    "NEXT_PUBLIC_PROOF_OF_THOUGHT_CONTRACT"
   ],
   "tasks": {
     "build": {

@@ -6,6 +6,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchCh
 import { parseUnits } from "viem";
 import { api } from "@/lib/api";
 import { kiteTestnet } from "@/lib/wagmi";
+import { KITE_TESTNET } from "@pot/shared";
 
 const TASK_TYPES = [
   { value: "text-generation", label: "Text Generation" },
@@ -84,7 +85,11 @@ export function TaskForm() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const contractAddress = process.env.NEXT_PUBLIC_PROOF_OF_THOUGHT_CONTRACT as `0x${string}` | undefined;
+  /** Env wins so you can point at your own deployment; shared constant is Kite Testnet default from docs */
+  const contractAddress = (
+    process.env.NEXT_PUBLIC_PROOF_OF_THOUGHT_CONTRACT ??
+    KITE_TESTNET.contracts.proofOfThought
+  ).trim() as `0x${string}`;
 
   const effectiveInput = type === "custom" && customDescription
     ? `[Custom Task: ${customDescription}]\n\n${input}`
@@ -288,12 +293,13 @@ export function TaskForm() {
     );
   }
 
-  if (!contractAddress) {
+  if (!contractAddress.startsWith("0x") || contractAddress.length !== 42) {
     return (
       <div className="text-center py-12">
         <p className="text-red-400 text-lg mb-2">Contract not configured</p>
         <p className="text-gray-500 text-sm">
-          Set NEXT_PUBLIC_PROOF_OF_THOUGHT_CONTRACT in your environment.
+          Set <code className="text-gray-400">NEXT_PUBLIC_PROOF_OF_THOUGHT_CONTRACT</code> to a valid
+          0x address (or leave unset to use the default Kite Testnet deployment from the app).
         </p>
       </div>
     );

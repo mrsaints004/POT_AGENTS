@@ -10,6 +10,8 @@ export const KITE_TESTNET = {
     testUSDT: "0x0fF5393387ad2f9f691FD6Fd28e07E3969e27e63",
     gokiteAccountFactory: "0xF0Fc19F0dc393867F19351d25EDfc5E099561cb7",
     serviceRegistry: "0xc67a4AbcD8853221F241a041ACb1117b38DA587F",
+    /** ProofOfThought escrow / attestation contract (same default as backend `PROOF_OF_THOUGHT_CONTRACT` docs). Override per deployment via env. */
+    proofOfThought: "0xfC375dCE59C9Cf97f557607F785781d65877938e",
   },
 } as const;
 
