@@ -239,7 +239,7 @@ router.post("/:id/retry", async (req, res) => {
     const taskId = crypto.randomUUID();
 
     // Pre-create the task row so the frontend can navigate to it immediately
-    await db.insert(tasks).values({
+    const insertValues: Record<string, unknown> = {
       id: taskId,
       type: original.type,
       input: original.input,
@@ -251,7 +251,8 @@ router.post("/:id/retry", async (req, res) => {
       retryCount,
       fileName: original.fileName,
       fileContent: original.fileContent,
-    });
+    };
+    await db.insert(tasks).values(insertValues as typeof tasks.$inferInsert);
 
     // Return immediately so frontend can navigate
     res.status(201).json({ taskId });
@@ -330,11 +331,12 @@ router.post("/:id/pick-winner", async (req, res) => {
     }
 
     // Update task with winning provider and result
-    await db.update(tasks).set({
+    const updateValues: Record<string, unknown> = {
       winningProvider: provider,
       selectedProvider: provider,
       result: winnerRow.result,
-    }).where(eq(tasks.id, taskId));
+    };
+    await db.update(tasks).set(updateValues as Partial<typeof tasks.$inferInsert>).where(eq(tasks.id, taskId));
 
     // Record on-chain attestation for the winner
     const io = req.app.get("io");

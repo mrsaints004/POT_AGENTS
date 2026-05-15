@@ -5,6 +5,13 @@ import { Server } from "socket.io";
 import { Task, ReasoningStep, ProviderName, TaskCreateInput, PROVIDERS } from "@pot/shared";
 import { db } from "../db";
 import { tasks, attestations, comparisonResults } from "../schema";
+
+// Type helpers for drizzle insert/update compatibility with TS 5.9+
+type TaskInsert = typeof tasks.$inferInsert;
+type TaskUpdate = Partial<TaskInsert>;
+type AttestationInsert = typeof attestations.$inferInsert;
+type ComparisonInsert = typeof comparisonResults.$inferInsert;
+type ComparisonUpdate = Partial<ComparisonInsert>;
 import { DecisionEngine } from "./DecisionEngine";
 import { GeminiProProvider } from "./GeminiProProvider";
 import { GeminiFlashProvider } from "./GeminiFlashProvider";
@@ -165,7 +172,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
 
     try {
       // Step 1: Create task in DB (onConflictDoNothing for retries where row is pre-created)
-      await db.insert(tasks).values({
+      const taskRow: TaskInsert = {
         id: taskId,
         type: taskInput.type,
         input: taskInput.input,
@@ -174,7 +181,8 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
         paymentStatus: "none",
         ...(taskInput.fileName ? { fileName: taskInput.fileName } : {}),
         ...(taskInput.fileContent ? { fileContent: taskInput.fileContent } : {}),
-      }).onConflictDoNothing();
+      };
+      await db.insert(tasks).values(taskRow).onConflictDoNothing();
       this.io.emit("task:update", { taskId, status: "pending" });
 
       addStep("task-received", `Received ${taskInput.type} task`, {
@@ -184,7 +192,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
       });
 
       // Step 2: Discover providers
-      await db.update(tasks).set({ status: "selecting-provider" }).where(eq(tasks.id, taskId));
+      await db.update(tasks).set({ status: "selecting-provider" } as TaskUpdate).where(eq(tasks.id, taskId));
       this.io.emit("task:update", { taskId, status: "selecting-provider" });
 
       const availableProviders = Array.from(this.providers.keys()).filter((p) => p !== "mock");
@@ -214,10 +222,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
       // Step 4: Verify user escrow deposit
       const escrowTxHash = taskInput.escrowTxHash;
       if (escrowTxHash && taskInput.depositorAddress) {
-        await db.update(tasks).set({
-          escrowTxHash,
-          paymentStatus: "escrowed",
-        }).where(eq(tasks.id, taskId));
+        await db.update(tasks).set({ escrowTxHash, paymentStatus: "escrowed" } as TaskUpdate).where(eq(tasks.id, taskId));
 
         addStep("escrow-verified", `User deposited escrow via wallet`, {
           escrowTxHash,
@@ -232,7 +237,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
       // Step 5: Decompose task into subtasks
       const decomposition = await this.decomposeTask(taskInput.type, taskInput.input);
 
-      await db.update(tasks).set({ status: "executing" }).where(eq(tasks.id, taskId));
+      await db.update(tasks).set({ status: "executing" } as TaskUpdate).where(eq(tasks.id, taskId));
       this.io.emit("task:update", { taskId, status: "executing" });
 
       let result: string;
@@ -307,7 +312,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
           // Update selected provider on first subtask
           if (i === 0) {
             selectedProvider = subtaskProvider;
-            await db.update(tasks).set({ selectedProvider }).where(eq(tasks.id, taskId));
+            await db.update(tasks).set({ selectedProvider } as TaskUpdate).where(eq(tasks.id, taskId));
             this.io.emit("task:update", { taskId, status: "executing", selectedProvider });
           }
 
@@ -406,7 +411,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
               : "Best available provider",
         });
 
-        await db.update(tasks).set({ selectedProvider }).where(eq(tasks.id, taskId));
+        await db.update(tasks).set({ selectedProvider } as TaskUpdate).where(eq(tasks.id, taskId));
         this.io.emit("task:update", { taskId, status: "executing", selectedProvider });
 
         addStep("execute-start", `Executing task with ${selectedProvider}...`);
@@ -429,7 +434,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
       }
 
       // Record attestation + release payment on-chain
-      await db.update(tasks).set({ status: "recording-attestation" }).where(eq(tasks.id, taskId));
+      await db.update(tasks).set({ status: "recording-attestation" } as TaskUpdate).where(eq(tasks.id, taskId));
       this.io.emit("task:update", { taskId, status: "recording-attestation" });
 
       const reasoningData = JSON.stringify(reasoningSteps);
@@ -455,10 +460,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
           txHash = chainResult.txHash;
           blockNumber = chainResult.blockNumber;
 
-          await db.update(tasks).set({
-            paymentTxHash: txHash,
-            paymentStatus: "released",
-          }).where(eq(tasks.id, taskId));
+          await db.update(tasks).set({ paymentTxHash: txHash, paymentStatus: "released" } as TaskUpdate).where(eq(tasks.id, taskId));
 
           addStep("attestation-recorded", "Attestation recorded on Kite blockchain", {
             txHash,
@@ -482,7 +484,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
       const attestationId = uuidv4();
       const agentAddress = this.kiteClient?.getAddress() ?? "0x0000000000000000000000000000000000000000";
 
-      await db.insert(attestations).values({
+      const attestRow: AttestationInsert = {
         id: attestationId,
         taskId,
         taskType: taskInput.type,
@@ -493,17 +495,13 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
         blockNumber: blockNumber ?? null,
         agentAddress,
         reasoningSteps: reasoningSteps,
-      });
+      };
+      await db.insert(attestations).values(attestRow);
 
       // Update task as completed
       await db
         .update(tasks)
-        .set({
-          status: "completed",
-          result,
-          attestationId,
-          completedAt: new Date(),
-        })
+        .set({ status: "completed", result, attestationId, completedAt: new Date() } as TaskUpdate)
         .where(eq(tasks.id, taskId));
 
       this.io.emit("task:update", { taskId, status: "completed" });
@@ -518,7 +516,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
       return taskId;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      await db.update(tasks).set({ status: "failed", result: `Error: ${message}` }).where(eq(tasks.id, taskId));
+      await db.update(tasks).set({ status: "failed", result: `Error: ${message}` } as TaskUpdate).where(eq(tasks.id, taskId));
       this.io.emit("task:update", { taskId, status: "failed", error: message });
       throw error;
     }
@@ -536,7 +534,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
 
     try {
       // Create parent task with compareMode
-      await db.insert(tasks).values({
+      const compareRow: TaskInsert = {
         id: taskId,
         type: taskInput.type,
         input: taskInput.input,
@@ -547,7 +545,8 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
         ...(taskInput.fileName ? { fileName: taskInput.fileName } : {}),
         ...(taskInput.fileContent ? { fileContent: taskInput.fileContent } : {}),
         ...(taskInput.escrowTxHash ? { escrowTxHash: taskInput.escrowTxHash, paymentStatus: "escrowed" } : {}),
-      }).onConflictDoNothing();
+      };
+      await db.insert(tasks).values(compareRow).onConflictDoNothing();
 
       this.io.emit("task:update", { taskId, status: "executing", compareMode: true });
 
@@ -556,12 +555,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
       for (const providerName of availableProviders) {
         const compId = uuidv4();
         comparisonIds.set(providerName, compId);
-        await db.insert(comparisonResults).values({
-          id: compId,
-          taskId,
-          provider: providerName,
-          status: "pending",
-        });
+        await db.insert(comparisonResults).values({ id: compId, taskId, provider: providerName, status: "pending" } as ComparisonInsert);
       }
 
       // Run all providers in parallel
@@ -570,7 +564,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
         const compId = comparisonIds.get(providerName)!;
 
         // Emit start event
-        await db.update(comparisonResults).set({ status: "executing" }).where(eq(comparisonResults.id, compId));
+        await db.update(comparisonResults).set({ status: "executing" } as ComparisonUpdate).where(eq(comparisonResults.id, compId));
         this.io.emit("compare:provider-start", { taskId, provider: providerName });
 
         const startTime = Date.now();
@@ -580,13 +574,8 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
           const costUsd = (tokensUsed / 1000) * (provider.config?.costPer1kTokens ?? 0);
 
           await db.update(comparisonResults).set({
-            status: "completed",
-            result,
-            tokensUsed,
-            costUsd,
-            durationMs,
-            completedAt: new Date(),
-          }).where(eq(comparisonResults.id, compId));
+            status: "completed", result, tokensUsed, costUsd, durationMs, completedAt: new Date(),
+          } as ComparisonUpdate).where(eq(comparisonResults.id, compId));
 
           this.io.emit("compare:provider-complete", {
             taskId,
@@ -601,11 +590,8 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
           const errorMessage = err instanceof Error ? err.message : "Unknown error";
 
           await db.update(comparisonResults).set({
-            status: "failed",
-            error: errorMessage,
-            durationMs,
-            completedAt: new Date(),
-          }).where(eq(comparisonResults.id, compId));
+            status: "failed", error: errorMessage, durationMs, completedAt: new Date(),
+          } as ComparisonUpdate).where(eq(comparisonResults.id, compId));
 
           this.io.emit("compare:provider-failed", {
             taskId,
@@ -619,17 +605,14 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
       await Promise.allSettled(promises);
 
       // Update parent task as completed
-      await db.update(tasks).set({
-        status: "completed",
-        completedAt: new Date(),
-      }).where(eq(tasks.id, taskId));
+      await db.update(tasks).set({ status: "completed", completedAt: new Date() } as TaskUpdate).where(eq(tasks.id, taskId));
 
       this.io.emit("task:update", { taskId, status: "completed", compareMode: true });
 
       return taskId;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      await db.update(tasks).set({ status: "failed", result: `Error: ${message}` }).where(eq(tasks.id, taskId));
+      await db.update(tasks).set({ status: "failed", result: `Error: ${message}` } as TaskUpdate).where(eq(tasks.id, taskId));
       this.io.emit("task:update", { taskId, status: "failed", error: message });
       throw error;
     }
