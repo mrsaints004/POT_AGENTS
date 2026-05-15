@@ -4,14 +4,7 @@ import { eq } from "drizzle-orm";
 import { Server } from "socket.io";
 import { Task, ReasoningStep, ProviderName, TaskCreateInput, PROVIDERS } from "@pot/shared";
 import { db } from "../db";
-import { tasks, attestations, comparisonResults } from "../schema";
-
-// Type helpers for drizzle insert/update compatibility with TS 5.9+
-type TaskInsert = typeof tasks.$inferInsert;
-type TaskUpdate = Partial<TaskInsert>;
-type AttestationInsert = typeof attestations.$inferInsert;
-type ComparisonInsert = typeof comparisonResults.$inferInsert;
-type ComparisonUpdate = Partial<ComparisonInsert>;
+import { tasks, attestations, comparisonResults, type TaskUpdate, type ComparisonUpdate } from "../schema";
 import { DecisionEngine } from "./DecisionEngine";
 import { GeminiProProvider } from "./GeminiProProvider";
 import { GeminiFlashProvider } from "./GeminiFlashProvider";
@@ -172,17 +165,19 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
 
     try {
       // Step 1: Create task in DB (onConflictDoNothing for retries where row is pre-created)
-      const taskRow: TaskInsert = {
-        id: taskId,
-        type: taskInput.type,
-        input: taskInput.input,
-        maxCostUsd: taskInput.maxCostUsd,
-        status: "pending",
-        paymentStatus: "none",
-        ...(taskInput.fileName ? { fileName: taskInput.fileName } : {}),
-        ...(taskInput.fileContent ? { fileContent: taskInput.fileContent } : {}),
-      };
-      await db.insert(tasks).values(taskRow).onConflictDoNothing();
+      await db
+        .insert(tasks)
+        .values({
+          id: taskId,
+          type: taskInput.type,
+          input: taskInput.input,
+          maxCostUsd: taskInput.maxCostUsd,
+          status: "pending",
+          paymentStatus: "none",
+          ...(taskInput.fileName ? { fileName: taskInput.fileName } : {}),
+          ...(taskInput.fileContent ? { fileContent: taskInput.fileContent } : {}),
+        } as typeof tasks.$inferInsert)
+        .onConflictDoNothing();
       this.io.emit("task:update", { taskId, status: "pending" });
 
       addStep("task-received", `Received ${taskInput.type} task`, {
@@ -484,7 +479,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
       const attestationId = uuidv4();
       const agentAddress = this.kiteClient?.getAddress() ?? "0x0000000000000000000000000000000000000000";
 
-      const attestRow: AttestationInsert = {
+      await db.insert(attestations).values({
         id: attestationId,
         taskId,
         taskType: taskInput.type,
@@ -495,8 +490,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
         blockNumber: blockNumber ?? null,
         agentAddress,
         reasoningSteps: reasoningSteps,
-      };
-      await db.insert(attestations).values(attestRow);
+      } as typeof attestations.$inferInsert);
 
       // Update task as completed
       await db
@@ -534,19 +528,21 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
 
     try {
       // Create parent task with compareMode
-      const compareRow: TaskInsert = {
-        id: taskId,
-        type: taskInput.type,
-        input: taskInput.input,
-        maxCostUsd: taskInput.maxCostUsd,
-        status: "executing",
-        paymentStatus: "none",
-        compareMode: true,
-        ...(taskInput.fileName ? { fileName: taskInput.fileName } : {}),
-        ...(taskInput.fileContent ? { fileContent: taskInput.fileContent } : {}),
-        ...(taskInput.escrowTxHash ? { escrowTxHash: taskInput.escrowTxHash, paymentStatus: "escrowed" } : {}),
-      };
-      await db.insert(tasks).values(compareRow).onConflictDoNothing();
+      await db
+        .insert(tasks)
+        .values({
+          id: taskId,
+          type: taskInput.type,
+          input: taskInput.input,
+          maxCostUsd: taskInput.maxCostUsd,
+          status: "executing",
+          paymentStatus: "none",
+          compareMode: true,
+          ...(taskInput.fileName ? { fileName: taskInput.fileName } : {}),
+          ...(taskInput.fileContent ? { fileContent: taskInput.fileContent } : {}),
+          ...(taskInput.escrowTxHash ? { escrowTxHash: taskInput.escrowTxHash, paymentStatus: "escrowed" } : {}),
+        } as typeof tasks.$inferInsert)
+        .onConflictDoNothing();
 
       this.io.emit("task:update", { taskId, status: "executing", compareMode: true });
 
@@ -555,7 +551,9 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
       for (const providerName of availableProviders) {
         const compId = uuidv4();
         comparisonIds.set(providerName, compId);
-        await db.insert(comparisonResults).values({ id: compId, taskId, provider: providerName, status: "pending" } as ComparisonInsert);
+        await db
+          .insert(comparisonResults)
+          .values({ id: compId, taskId, provider: providerName, status: "pending" } as typeof comparisonResults.$inferInsert);
       }
 
       // Run all providers in parallel

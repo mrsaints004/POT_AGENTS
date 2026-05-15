@@ -1,3 +1,4 @@
+import type { InferInsertModel } from "drizzle-orm";
 import { pgTable, text, timestamp, real, integer, jsonb, boolean } from "drizzle-orm/pg-core";
 
 export const tasks = pgTable("tasks", {
@@ -49,3 +50,9 @@ export const attestations = pgTable("attestations", {
   reasoningSteps: jsonb("reasoning_steps").notNull().default([]),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export type TaskInsert = InferInsertModel<typeof tasks>;
+export type TaskUpdate = Partial<TaskInsert>;
+export type AttestationInsert = InferInsertModel<typeof attestations>;
+export type ComparisonInsert = InferInsertModel<typeof comparisonResults>;
+export type ComparisonUpdate = Partial<ComparisonInsert>;

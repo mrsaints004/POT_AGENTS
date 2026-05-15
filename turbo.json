@@ -1,5 +1,13 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": [
+    "DATABASE_URL",
+    "GEMINI_API_KEY",
+    "PRIVATE_KEY",
+    "PROOF_OF_THOUGHT_CONTRACT",
+    "PORT",
+    "FRONTEND_URL"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
