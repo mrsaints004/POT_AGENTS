@@ -32,6 +32,9 @@ function Nav() {
           <Link href="/agent" className="text-gray-400 hover:text-white transition">
             Agent
           </Link>
+          <Link href="/status" className="text-gray-400 hover:text-white transition">
+            Status
+          </Link>
         </div>
         <div className="ml-auto">
           <ConnectWallet />

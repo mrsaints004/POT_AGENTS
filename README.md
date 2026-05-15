@@ -21,6 +21,10 @@
 │  │ AgentCore  │  │DecisionEngine│  │ x402 Gate │  │Gasless Relay│  │
 │  │ (orchestr.)│  │ (scoring)    │  │ (paywall) │  │ (EIP-712)   │  │
 │  └─────┬──────┘  └──────────────┘  └───────────┘  └─────────────┘  │
+│  ┌─────┴──────┐  ┌──────────────┐                                  │
+│  │Merkle Tree │  │Agent Discover│  (hire other agents via x402)     │
+│  │(sub-attest)│  │  + Hiring    │                                   │
+│  └────────────┘  └──────────────┘                                   │
 │        │  Task Decomposition + Provider Selection                   │
 │        ▼                                                            │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────┐ ┌───────────┐  │
@@ -63,11 +67,14 @@
 - **Autonomous Task Decomposition** — Breaks complex tasks into 2-4 subtasks, executes sequentially with context chaining
 - **Multi-Provider AI Orchestration** — Scores and selects optimal provider (Claude, GPT-4o, Gemini, DeepSeek) based on cost (40%), quality (40%), speed (20%)
 - **Compare Mode** — Run all providers in parallel for side-by-side comparison with cost savings analytics
-- **On-Chain Reasoning Attestations** — SHA-256 hash of reasoning steps recorded on Kite blockchain for verifiability
+- **Merkle Reasoning Tree** — Each subtask gets its own SHA-256 sub-attestation hash; a Merkle root is computed from all sub-hashes, creating a verifiable proof tree
+- **On-Chain Reasoning Attestations** — Merkle root of reasoning steps recorded on Kite blockchain for verifiability
 - **USDT Escrow Payments** — Users deposit to smart contract; payment released to agent upon completion
 - **x402 Payment Protocol** — HTTP 402-based machine-to-machine payments for agent-as-a-service endpoints
+- **Agent-to-Agent Discovery & Hiring** — Discovers other agents in the GoKite Service Registry and can hire them via x402 for subtask delegation
 - **Gasless Transactions** — EIP-712 meta-transactions so users don't need KITE for gas
-- **Agent Passport** — Verifiable agent identity via GoKite Account Factory
+- **Agent Passport** — Verifiable agent identity via GoKite Account Factory with dynamic trust score
+- **Live Production Status** — Public `/status` page showing uptime, settled USDT, wallet balances, and attestation history
 - **CLI Tool** — Full-featured CLI (`pot-cli`) for headless task submission and monitoring
 - **Cross-Chain Awareness** — LayerZero integration for cross-chain attestation bridging
 - **File Upload** — Process PDF, DOCX, CSV, TXT documents with AI
@@ -204,7 +211,13 @@ All contracts deployed on **Kite AI Testnet** (Chain ID: 2368).
 | `GET` | `/api/agent/status` | Agent address, chain, passport |
 | `GET` | `/api/agent/passport` | Agent Passport details |
 | `GET` | `/api/x402/execute` | x402-protected AI task execution |
+| `GET` | `/api/x402/pricing` | x402 pricing info per task type |
 | `POST` | `/api/gasless/relay` | Relay gasless meta-transaction |
+| `GET` | `/api/gasless/info` | Gasless relay config and EIP-712 domain |
+| `GET` | `/api/status` | Live production status (public) |
+| `GET` | `/api/discovery/agents` | Discover agents in Service Registry |
+| `GET` | `/api/discovery/self` | This agent's discoverable profile |
+| `POST` | `/api/discovery/hire` | Hire an external agent via x402 |
 
 ---
 

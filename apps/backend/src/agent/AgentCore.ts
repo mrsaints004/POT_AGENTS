@@ -21,6 +21,43 @@ interface Subtask {
   instruction: string;
 }
 
+interface SubAttestationNode {
+  index: number;
+  title: string;
+  provider: ProviderName;
+  hash: string; // SHA-256 of this subtask's reasoning
+  costUsd: number;
+  tokensUsed: number;
+}
+
+/**
+ * Compute Merkle root from an array of leaf hashes.
+ * Creates a binary tree where each parent = SHA256(left + right).
+ */
+function computeMerkleRoot(leafHashes: string[]): { root: string; tree: string[][] } {
+  if (leafHashes.length === 0) return { root: "0x0", tree: [] };
+  if (leafHashes.length === 1) return { root: leafHashes[0], tree: [leafHashes] };
+
+  const tree: string[][] = [leafHashes];
+  let currentLevel = leafHashes;
+
+  while (currentLevel.length > 1) {
+    const nextLevel: string[] = [];
+    for (let i = 0; i < currentLevel.length; i += 2) {
+      const left = currentLevel[i];
+      const right = currentLevel[i + 1] ?? left; // duplicate last if odd
+      const parent = createHash("sha256")
+        .update(left + right)
+        .digest("hex");
+      nextLevel.push(`0x${parent}`);
+    }
+    tree.push(nextLevel);
+    currentLevel = nextLevel;
+  }
+
+  return { root: currentLevel[0], tree };
+}
+
 export class AgentCore {
   private decisionEngine: DecisionEngine;
   private providers: Map<ProviderName, Provider>;
@@ -232,7 +269,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
       }
 
       if (decomposition && decomposition.subtasks.length >= 2) {
-        // Multi-step execution
+        // Multi-step execution with sub-attestation chain
         addStep("task-decomposed", `Decomposed task into ${decomposition.subtasks.length} subtasks`, {
           reasoning: decomposition.reasoning,
           subtasks: decomposition.subtasks.map((s, i) => `${i + 1}. ${s.title}`),
@@ -240,6 +277,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
         });
 
         const subtaskResults: string[] = [];
+        const subAttestationNodes: SubAttestationNode[] = [];
 
         for (let i = 0; i < decomposition.subtasks.length; i++) {
           const subtask = decomposition.subtasks[i];
@@ -289,6 +327,27 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
 
           subtaskResults.push(subtaskResult);
 
+          // Compute sub-attestation hash for this subtask
+          const subtaskData = JSON.stringify({
+            index: i,
+            title: subtask.title,
+            provider: subtaskProvider,
+            input: subtask.instruction.substring(0, 200),
+            resultHash: createHash("sha256").update(subtaskResult).digest("hex"),
+            tokensUsed,
+            costUsd: subtaskCost,
+          });
+          const subtaskHash = `0x${createHash("sha256").update(subtaskData).digest("hex")}`;
+
+          subAttestationNodes.push({
+            index: i,
+            title: subtask.title,
+            provider: subtaskProvider,
+            hash: subtaskHash,
+            costUsd: subtaskCost,
+            tokensUsed,
+          });
+
           addStep("subtask-complete", `Completed subtask ${i + 1}: ${subtask.title}`, {
             subtaskIndex: i + 1,
             title: subtask.title,
@@ -296,14 +355,33 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
             tokensUsed,
             executionTimeMs: executionTime,
             costUsd: `$${subtaskCost.toFixed(6)}`,
+            subAttestationHash: subtaskHash,
             resultPreview: subtaskResult.substring(0, 200),
           });
         }
+
+        // Build Merkle tree from sub-attestation hashes
+        const leafHashes = subAttestationNodes.map((n) => n.hash);
+        const { root: merkleRoot, tree: merkleTree } = computeMerkleRoot(leafHashes);
+
+        addStep("merkle-tree-computed", `Built Merkle reasoning tree from ${subAttestationNodes.length} sub-attestations`, {
+          merkleRoot,
+          leafHashes,
+          treeDepth: merkleTree.length,
+          subAttestations: subAttestationNodes.map((n) => ({
+            index: n.index,
+            title: n.title,
+            provider: n.provider,
+            hash: n.hash,
+            costUsd: `$${n.costUsd.toFixed(6)}`,
+          })),
+        });
 
         addStep("cost-tracking", `Total execution cost: $${totalActualCost.toFixed(6)}`, {
           totalTokensUsed,
           totalCostUsd: `$${totalActualCost.toFixed(6)}`,
           subtaskCount: decomposition.subtasks.length,
+          merkleRoot,
         });
 
         // Combine results

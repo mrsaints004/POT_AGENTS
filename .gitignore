@@ -44,3 +44,6 @@ typechain-types/
 .idea/
 *.swp
 *.swo
+
+# Submission
+SUBMISSION.md

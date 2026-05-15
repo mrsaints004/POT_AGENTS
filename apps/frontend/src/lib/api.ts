@@ -79,6 +79,14 @@ export const api = {
   getComparisonHistory: () => fetchApi<any[]>("/api/tasks/comparisons/history"),
   getGaslessInfo: () => fetchApi<any>("/api/gasless/info"),
   getX402Pricing: () => fetchApi<any>("/api/x402/pricing"),
+  getStatus: () => fetchApi<any>("/api/status"),
+  discoverAgents: () => fetchApi<any>("/api/discovery/agents"),
+  getAgentSelf: () => fetchApi<any>("/api/discovery/self"),
+  hireAgent: (data: { agentEndpoint: string; taskType: string; input: string }) =>
+    fetchApi<any>("/api/discovery/hire", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 };
 
 export { API_URL };

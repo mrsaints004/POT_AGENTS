@@ -8,6 +8,8 @@ import { attestationRoutes } from "./routes/attestations";
 import { agentRoutes } from "./routes/agent";
 import { x402Routes } from "./routes/x402";
 import { gaslessRoutes } from "./routes/gasless";
+import { statusRoutes } from "./routes/status";
+import { discoveryRoutes } from "./routes/discovery";
 import { KiteClient } from "./blockchain/KiteClient";
 
 const app = express();
@@ -41,6 +43,8 @@ app.use("/api/attestations", attestationRoutes);
 app.use("/api/agent", agentRoutes);
 app.use("/api/x402", x402Routes);
 app.use("/api/gasless", gaslessRoutes);
+app.use("/api/status", statusRoutes);
+app.use("/api/discovery", discoveryRoutes);
 
 io.on("connection", (socket) => {
   console.log(`Client connected: ${socket.id}`);
