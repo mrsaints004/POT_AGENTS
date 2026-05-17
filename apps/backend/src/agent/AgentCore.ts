@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { Server } from "socket.io";
 import { Task, ReasoningStep, ProviderName, TaskCreateInput, PROVIDERS } from "@pot/shared";
 import { db } from "../db";
-import { tasks, attestations, comparisonResults, type TaskUpdate, type ComparisonUpdate } from "../schema";
+import { tasks, attestations, comparisonResults, type TaskUpdate, type ComparisonUpdate, type TaskInsert, type AttestationInsert } from "../schema";
 import { DecisionEngine } from "./DecisionEngine";
 import { GeminiProProvider } from "./GeminiProProvider";
 import { GeminiFlashProvider } from "./GeminiFlashProvider";

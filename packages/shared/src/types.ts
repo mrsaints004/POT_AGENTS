@@ -83,6 +83,7 @@ export interface TaskCreateInput {
   type: TaskType;
   input: string;
   maxCostUsd: number;
+  status?: TaskStatus; // Added status property
   escrowTxHash?: string;
   depositorAddress?: string;
   taskId?: string;

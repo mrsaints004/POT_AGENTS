@@ -27,6 +27,7 @@ function getAllowedOrigins(): string[] {
   return [
     "http://localhost:3000",
     "http://localhost:3001",
+    "https://pot-agents-frontend.vercel.app", // Explicitly allow Vercel frontend
     ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
   ];
 }
